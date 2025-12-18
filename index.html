@@ -1,6 +1,10 @@
 <!-- REEMPLAZA SOLO EL BLOQUE <script> COMPLETO POR ESTE -->
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzHdTk7vQe8amrJ9Mg2OGhko1AZQ58IhLOZsMYrYJpIGBSzeqJHR2pjWa3_V8dm-siMVQ/exec"; // tu deploy /exec
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzHdTk7vQe8amrJ9Mg2OGhko1AZQ58IhLOZsMYrYJpIGBSzeqJHR2pjWa3_V8dm-siMVQ/exec"; // <-- pega aquí tu /exec real
+
+if (!SCRIPT_URL || !SCRIPT_URL.startsWith("https://script.google.com/macros/s/")) {
+  document.getElementById("estado").textContent = "SCRIPT_URL inválido: https://script.google.com/macros/s/AKfycbzHdTk7vQe8amrJ9Mg2OGhko1AZQ58IhLOZsMYrYJpIGBSzeqJHR2pjWa3_V8dm-siMVQ/exec";
+}
 
 let DATA = {
   listas: { grados:[], suministros:[], turnos:[], grupos:[], salaControl:[], minas:[] },
