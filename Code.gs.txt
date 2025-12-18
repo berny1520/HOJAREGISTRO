@@ -1,0 +1,153 @@
+/***************************************
+ * Dashboard Hormigón – WebApp Apps Script
+ * Lee listas desde: DATOS
+ * Guarda/historial en: REGISTRO
+ ***************************************/
+const SPREADSHEET_ID = "1FOX3zd7OvuzziGCSaAwrHu18PeQhU6zj9Dty8MrXnZY";
+const SHEET_DATOS    = "DATOS";
+const SHEET_REGISTRO = "REGISTRO"; // <- si tu hoja se llama HORMIGONES, cámbiala aquí
+
+function _ss_() {
+  return SpreadsheetApp.openById(SPREADSHEET_ID);
+}
+
+function _colValues_(sh, col, startRow) {
+  const last = sh.getLastRow();
+  if (last < startRow) return [];
+  const rng = sh.getRange(startRow, col, last - startRow + 1, 1).getValues();
+  return rng.map(r => r[0]).filter(v => v !== "" && v != null);
+}
+
+function _unique_(arr) {
+  return [...new Set((arr || []).filter(v => v !== "" && v != null))];
+}
+
+function _json_(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/*******************************
+ * API (GET)
+ *******************************/
+function doGet(e) {
+  const action = (e.parameter.action || "").toLowerCase();
+
+  if (action === "ping") return _json_({ ok: true, ts: new Date().toISOString() });
+
+  // Listas para desplegables
+  if (action === "datos") return handleGetDatos();
+
+  // Historial: acepta ambos nombres (por compatibilidad)
+  if (action === "historial" || action === "registro") return handleGetHistorial();
+
+  return _json_({ error: "Acción no válida. Usa: ?action=datos | ?action=historial | ?action=ping" });
+}
+
+/**
+ * Lee listas desde hoja DATOS:
+ * - Grado (col 1), Suministro (col 3), Turno (col 5), Grupo (col 7), Sala control (col 8)
+ * - Minas/Posturas: encabezados en fila 1, columnas 10..27
+ * - CNC: CNC Nivel 2 (29), CNC Nivel 1 (30), Responsable (31)
+ */
+function handleGetDatos() {
+  const sh = _ss_().getSheetByName(SHEET_DATOS);
+  if (!sh) return _json_({ error: `No se encontró la hoja ${SHEET_DATOS}.` });
+
+  const grados      = _unique_(_colValues_(sh, 1, 2));
+  const suministros = _unique_(_colValues_(sh, 3, 2));
+  const turnos      = _unique_(_colValues_(sh, 5, 2));
+  const grupos      = _unique_(_colValues_(sh, 7, 2));
+  const salaControl = _unique_(_colValues_(sh, 8, 2));
+
+  // CNC por filas
+  const respList = _colValues_(sh, 31, 2);
+  const cnc1List = _colValues_(sh, 30, 2);
+  const cnc2List = _colValues_(sh, 29, 2);
+
+  const cncRows = [];
+  const maxLen = Math.max(respList.length, cnc1List.length, cnc2List.length);
+  for (let i = 0; i < maxLen; i++) {
+    const resp = respList[i] || "";
+    const c1   = cnc1List[i] || "";
+    const c2   = cnc2List[i] || "";
+    if (resp || c1 || c2) cncRows.push({ RESPONSABLE_CNC: resp, CNC_NIVEL_1: c1, CNC_NIVEL_2: c2 });
+  }
+
+  // Minas y posturas
+  const headerRow = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  const minas = [];
+  const posturasPorMina = {};
+
+  for (let c = 10; c <= 27; c++) {
+    const minaName = headerRow[c - 1];
+    if (!minaName) continue;
+    minas.push(minaName);
+    posturasPorMina[minaName] = _unique_(_colValues_(sh, c, 2));
+  }
+
+  return _json_({
+    listas: { grados, suministros, turnos, grupos, salaControl, minas },
+    cncRows,
+    posturasPorMina
+  });
+}
+
+/**
+ * Devuelve últimos 100 registros desde SHEET_REGISTRO
+ */
+function handleGetHistorial() {
+  const sh = _ss_().getSheetByName(SHEET_REGISTRO);
+  if (!sh) return _json_({ error: `No se encontró la hoja ${SHEET_REGISTRO}.` });
+
+  const values = sh.getDataRange().getValues();
+  if (values.length < 2) return _json_({ registros: [] });
+
+  const headers = values[0].map(h => String(h).trim());
+  const ultimos = values.slice(1).slice(-100);
+
+  const registros = ultimos.map(row => {
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = row[i]);
+    return obj;
+  });
+
+  return _json_({ registros });
+}
+
+/*******************************
+ * API (POST) - Guardar
+ *******************************/
+function doPost(e) {
+  const sh = _ss_().getSheetByName(SHEET_REGISTRO);
+  if (!sh) return _json_({ error: `No se encontró la hoja ${SHEET_REGISTRO}.` });
+
+  const body = (e.postData && e.postData.contents) ? e.postData.contents : "{}";
+  const data = JSON.parse(body);
+
+  const ahora = new Date();
+  const mes = Utilities.formatDate(ahora, "America/Santiago", "MM");
+  const semana = Utilities.formatDate(ahora, "America/Santiago", "w");
+
+  // Mantengo tu estructura de appendRow (la que ya estabas usando)
+  sh.appendRow([
+    ahora,                 // FECHA
+    mes,                   // MES
+    semana,                // SEMANA
+    data.turno || "",      // TURNO
+    data.grupo || "",      // GRUPO
+    data.mina || "",       // MINA
+    data.postura || "",    // LABOR/POSTURA
+    data.grado || "",      // GRADO
+    data.suministro || "", // SUMINISTRO
+    "", "", "", "", "", "", // PLANIFICADO..ELIMINADO
+    "", "", "", "", "",     // GUIA + HORAS
+    data.cnc2 || "",        // CNC NIVEL 2
+    data.cnc1 || "",        // CNC NIVEL 1
+    data.resp || "",        // RESPONSABLE CNC
+    data.salaControl || ""  // SALA DE CONTROL
+  ]);
+
+  return _json_({ status: "OK" });
+}
