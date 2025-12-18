@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard Hormigón – Sala de Control</title>
+
+<style>
+:root{
+  --primary:#d9232d;
+  --dark:#222;
+  --bg:#f2f4f7;
+  --card:#ffffff;
+  --muted:#777;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:var(--bg);
+}
+header{
+  background:var(--dark);
+  color:#fff;
+  padding:12px 28px;
+}
+header .wrap{
+  max-width:1400px;
+  margin:auto;
+  display:flex;
+  align-items:center;
+  gap:16px;
+}
+header img{height:52px}
+.container{
+  max-width:1400px;
+  margin:20px auto;
+  padding:0 14px;
+}
+.card{
+  background:var(--card);
+  border-radius:12px;
+  padding:16px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.08);
+  margin-bottom:18px;
+}
+.card h2{
+  margin:0 0 10px;
+  font-size:18px;
+}
+.form-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:12px 18px;
+}
+label{
+  font-size:11px;
+  font-weight:bold;
+  color:var(--muted);
+  display:block;
+  margin-bottom:4px;
+}
+select,input,textarea{
+  width:100%;
+  padding:6px 8px;
+  border-radius:6px;
+  border:1px solid #cfd3d8;
+  font-size:13px;
+}
+textarea{resize:vertical;min-height:40px;}
+.summary{
+  font-size:13px;
+  margin-top:10px;
+}
+.summary span{
+  color:var(--primary);
+  font-weight:bold;
+}
+.btn-bar{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:10px;
+}
+button{
+  border:none;
+  border-radius:6px;
+  padding:7px 12px;
+  font-size:13px;
+  cursor:pointer;
+}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-secondary{background:#555;color:#fff;}
+.btn-ghost{background:#eee;color:#333;}
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12px;
+}
+th,td{
+  padding:4px 6px;
+  border-bottom:1px solid #e1e1e1;
+  white-space:nowrap;
+}
+th{background:#f0f0f0;text-align:left;}
+tr:nth-child(even) td{background:#fafafa;}
+.footer{
+  text-align:center;
+  font-size:12px;
+  color:#999;
+  margin:16px 0 30px;
+}
+.small-note{font-size:12px;color:#666;margin-top:6px}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="wrap">
+    <img src="logo_Xtreme.png" alt="Xtreme">
+    <div>
+      <h1 style="margin:0;font-size:22px;">Dashboard Hormigón – Sala de Control</h1>
+      <div style="font-size:13px;color:#ccc">
+        Google Sheets · Apps Script · Auditoría por usuario
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- DATOS HORMIGÓN -->
+  <div class="card">
+    <h2>Datos de Hormigón</h2>
+    <div class="form-grid">
+      <div>
+        <label>Grado Hormigón</label>
+        <select id="grado"></select>
+      </div>
+      <div>
+        <label>Suministro</label>
+        <select id="suministro"></select>
+      </div>
+      <div>
+        <label>Turno</label>
+        <select id="turno"></select>
+      </div>
+      <div>
+        <label>Grupo</label>
+        <select id="grupo"></select>
+      </div>
+
+      <div>
+        <label>Mina</label>
+        <select id="mina"></select>
+      </div>
+      <div>
+        <label>Postura</label>
+        <select id="postura"></select>
+      </div>
+
+      <div>
+        <label>Sala de Control</label>
+        <select id="salaControl"></select>
+      </div>
+    </div>
+    <div class="small-note">Tip: “Postura” se carga automáticamente según la “Mina”.</div>
+  </div>
+
+  <!-- CONDICIÓN CNC -->
+  <div class="card">
+    <h2>Condición CNC</h2>
+    <div class="form-grid">
+      <div>
+        <label>Responsable CNC</label>
+        <select id="resp"></select>
+      </div>
+      <div>
+        <label>CNC Nivel 1</label>
+        <select id="cnc1"></select>
+      </div>
+      <div>
+        <label>CNC Nivel 2</label>
+        <select id="cnc2"></select>
+      </div>
+      <div>
+        <label>Observación / Detalle</label>
+        <textarea id="obs" placeholder="Observaciones adicionales"></textarea>
+      </div>
+    </div>
+    <div class="summary" id="resumen"></div>
+  </div>
+
+  <!-- USUARIO + GUARDADO -->
+  <div class="card">
+    <h2>Usuario y guardado</h2>
+    <div class="form-grid">
+      <div>
+        <label>Usuario (nombre o correo)</label>
+        <input id="usuario" placeholder="Ej: ladasme@xtreme.cl">
+      </div>
+    </div>
+
+    <div class="btn-bar">
+      <button class="btn-primary" type="button" onclick="guardarRegistro()">💾 Guardar en Google Sheets</button>
+      <button class="btn-secondary" type="button" onclick="limpiarFormulario()">🧹 Limpiar formulario</button>
+      <button class="btn-ghost" type="button" onclick="cargarHistorial()">📜 Actualizar historial</button>
+    </div>
+    <div id="estado" style="font-size:12px;color:#555;margin-top:8px;"></div>
+  </div>
+
+  <!-- HISTORIAL / AUDITORÍA -->
+  <div class="card">
+    <h2>Historial reciente (auditoría)</h2>
+    <div id="historial">Sin datos cargados aún.</div>
+  </div>
+
+  <div class="footer">
+    Xtreme Mining · Hormigones · Integración con Google Sheets (DATOS & HISTORIAL)
+  </div>
+
+</div>
+
+<script>
+/* =====================================================
+   CONFIGURACIÓN – SOLO CAMBIA ESTO
+===================================================== */
+// URL de tu Web App de Apps Script (termina en /exec)
+const SCRIPT_URL = "PEGA_AQUI_TU_URL_WEBAPP_EXEC";
+
+/* =====================================================
+   UTILIDADES
+===================================================== */
+function setEstado(msg, ok=true){
+  const el = document.getElementById("estado");
+  el.textContent = msg;
+  el.style.color = ok ? "#0a7a20" : "#b00020";
+}
+
+function fillSelect(sel, values, placeholder="Seleccionar..."){
+  sel.innerHTML = `<option value="">${placeholder}</option>`;
+  const uniq = [...new Set((values||[]).filter(v => v !== "" && v != null))];
+  uniq.forEach(v=>{
+    const o = document.createElement("option");
+    o.value = v;
+    o.textContent = v;
+    sel.appendChild(o);
+  });
+}
+
+/* =====================================================
+   DATA GLOBAL
+===================================================== */
+let DATA = {
+  listas: { grados:[], suministros:[], turnos:[], grupos:[], salaControl:[], minas:[] },
+  cncRows: [],
+  posturasPorMina: {}
+};
+
+/* =====================================================
+   CARGA LISTAS DESDE HOJA DATOS (Apps Script)
+===================================================== */
+const gradoSel = document.getElementById("grado");
+const suministroSel = document.getElementById("suministro");
+const turnoSel = document.getElementById("turno");
+const grupoSel = document.getElementById("grupo");
+const minaSel = document.getElementById("mina");
+const posturaSel = document.getElementById("postura");
+const salaSel = document.getElementById("salaControl");
+
+const respSel = document.getElementById("resp");
+const cnc1Sel = document.getElementById("cnc1");
+const cnc2Sel = document.getElementById("cnc2");
+
+function cargarListasDesdeGoogle(){
+  if (!SCRIPT_URL || SCRIPT_URL.includes("PEGA_AQUI")) {
+    setEstado("Falta configurar conexión (SCRIPT_URL).", false);
+    return;
+  }
+
+  setEstado("Cargando listas desde Google Sheets…", true);
+
+  fetch(SCRIPT_URL + "?action=datos")
+    .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(json => {
+      DATA = json;
+
+      fillSelect(gradoSel, DATA.listas.grados);
+      fillSelect(suministroSel, DATA.listas.suministros);
+      fillSelect(turnoSel, DATA.listas.turnos);
+      fillSelect(grupoSel, DATA.listas.grupos);
+
+      fillSelect(salaSel, DATA.listas.salaControl, "Seleccionar sala…");
+      fillSelect(minaSel, DATA.listas.minas, "Seleccionar mina…");
+      fillSelect(posturaSel, [], "Seleccionar postura…");
+
+      // CNC: cargar responsables
+      const responsables = (DATA.cncRows || []).map(x => x.RESPONSABLE_CNC).filter(Boolean);
+      fillSelect(respSel, responsables, "Seleccionar responsable…");
+      fillSelect(cnc1Sel, [], "Seleccionar CNC1…");
+      fillSelect(cnc2Sel, [], "Seleccionar CNC2…");
+
+      setEstado("Listas cargadas correctamente desde DATOS.", true);
+      actualizarResumen();
+    })
+    .catch(err => {
+      console.error(err);
+      setEstado("No se pudo leer la hoja DATOS desde Google Sheets.", false);
+    });
+}
+
+/* =====================================================
+   EVENTOS: Mina -> Posturas
+===================================================== */
+minaSel.addEventListener("change", ()=>{
+  const mina = minaSel.value;
+  const posturas = (DATA.posturasPorMina && DATA.posturasPorMina[mina]) ? DATA.posturasPorMina[mina] : [];
+  fillSelect(posturaSel, posturas, "Seleccionar postura…");
+  actualizarResumen();
+});
+posturaSel.addEventListener("change", actualizarResumen);
+
+/* =====================================================
+   EVENTOS: CNC anidado
+===================================================== */
+respSel.addEventListener("change", ()=>{
+  const filtrado = (DATA.cncRows || []).filter(d => d.RESPONSABLE_CNC === respSel.value);
+  fillSelect(cnc1Sel, filtrado.map(d=>d.CNC_NIVEL_1), "Seleccionar CNC1…");
+  fillSelect(cnc2Sel, [], "Seleccionar CNC2…");
+  actualizarResumen();
+});
+
+cnc1Sel.addEventListener("change", ()=>{
+  const filtrado = (DATA.cncRows || []).filter(d =>
+    d.RESPONSABLE_CNC === respSel.value &&
+    d.CNC_NIVEL_1 === cnc1Sel.value
+  );
+  fillSelect(cnc2Sel, filtrado.map(d=>d.CNC_NIVEL_2), "Seleccionar CNC2…");
+  actualizarResumen();
+});
+
+cnc2Sel.addEventListener("change", actualizarResumen);
+
+/* =====================================================
+   RESUMEN
+===================================================== */
+function actualizarResumen(){
+  const g  = gradoSel.value || "-";
+  const t  = turnoSel.value || "-";
+  const gr = grupoSel.value || "-";
+  const mi = minaSel.value || "-";
+  const po = posturaSel.value || "-";
+
+  const r  = respSel.value || "-";
+  const c1 = cnc1Sel.value || "-";
+  const c2 = cnc2Sel.value || "-";
+
+  document.getElementById("resumen").innerHTML =
+    `Grado <span>${g}</span> · Turno <span>${t}</span> · Grupo <span>${gr}</span> · Mina <span>${mi}</span> · Postura <span>${po}</span><br>` +
+    `CNC <span>${r}</span> / <span>${c1}</span> / <span>${c2}</span>`;
+}
+
+document.querySelectorAll("select,input,textarea")
+  .forEach(el => el.addEventListener("change", actualizarResumen));
+
+/* =====================================================
+   GUARDAR (POST)
+===================================================== */
+function guardarRegistro(){
+  const payload = {
+    fechaIso: new Date().toISOString(),
+    usuario: (document.getElementById("usuario").value || "SIN_USUARIO"),
+    grado: gradoSel.value,
+    suministro: suministroSel.value,
+    turno: turnoSel.value,
+    grupo: grupoSel.value,
+    mina: minaSel.value,
+    postura: posturaSel.value,
+    salaControl: salaSel.value,
+    resp: respSel.value,
+    cnc1: cnc1Sel.value,
+    cnc2: cnc2Sel.value,
+    observacion: (document.getElementById("obs").value || ""),
+    userAgent: navigator.userAgent
+  };
+
+  // Validación mínima
+  const required = ["grado","suministro","turno","grupo","mina","postura","resp","cnc1","cnc2"];
+  const missing = required.filter(k => !payload[k]);
+  if (missing.length){
+    alert("Faltan campos obligatorios: " + missing.join(", "));
+    return;
+  }
+
+  setEstado("Enviando registro a Google Sheets…", true);
+
+  fetch(SCRIPT_URL, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(payload)
+  })
+  .then(r => { if(!r.ok) throw new Error("HTTP " + r.status); return r.json().catch(()=>({status:"OK"})); })
+  .then(() => {
+    setEstado("✅ Registro guardado correctamente.", true);
+    cargarHistorial();
+  })
+  .catch(err => {
+    console.error(err);
+    setEstado("❌ Error guardando. Revisa Deploy/Permisos/Hoja de historial.", false);
+  });
+}
+
+/* =====================================================
+   LIMPIAR
+===================================================== */
+function limpiarFormulario(){
+  document.getElementById("usuario").value = "";
+  document.getElementById("obs").value = "";
+
+  gradoSel.value = "";
+  suministroSel.value = "";
+  turnoSel.value = "";
+  grupoSel.value = "";
+  salaSel.value = "";
+
+  minaSel.value = "";
+  fillSelect(posturaSel, [], "Seleccionar postura…");
+
+  respSel.value = "";
+  fillSelect(cnc1Sel, [], "Seleccionar CNC1…");
+  fillSelect(cnc2Sel, [], "Seleccionar CNC2…");
+
+  actualizarResumen();
+  setEstado("Formulario limpio.", true);
+}
+
+/* =====================================================
+   HISTORIAL
+===================================================== */
+function cargarHistorial(){
+  const cont = document.getElementById("historial");
+  cont.textContent = "Cargando historial desde Google Sheets…";
+
+  fetch(SCRIPT_URL + "?action=historial")
+    .then(r => { if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(json => {
+      const data = json.registros || [];
+      if (!data.length){
+        cont.textContent = "Sin registros en el historial aún.";
+        return;
+      }
+
+      // Render tabla según encabezados (toma campos más comunes)
+      let html = "<table><tr>" +
+        "<th>Fecha</th><th>Usuario</th><th>Grado</th><th>Suministro</th>" +
+        "<th>Turno</th><th>Grupo</th><th>Mina</th><th>Postura</th>" +
+        "<th>Sala</th><th>Responsable</th><th>CNC1</th><th>CNC2</th><th>Obs.</th>" +
+        "</tr>";
+
+      data.slice().reverse().slice(0, 50).forEach(r=>{
+        const fecha = r.Fecha || r.FECHA || r.FechaISO || r.fechaIso || "";
+        html += `<tr>
+          <td>${fecha}</td>
+          <td>${r.Usuario || r.usuario || ""}</td>
+          <td>${r.Grado || r.grado || ""}</td>
+          <td>${r.Suministro || r.suministro || ""}</td>
+          <td>${r.Turno || r.turno || ""}</td>
+          <td>${r.Grupo || r.grupo || ""}</td>
+          <td>${r.Mina || r.mina || ""}</td>
+          <td>${r.Postura || r.postura || ""}</td>
+          <td>${r.SalaControl || r.salaControl || ""}</td>
+          <td>${r.ResponsableCNC || r.resp || ""}</td>
+          <td>${r.CNCNivel1 || r.cnc1 || ""}</td>
+          <td>${r.CNCNivel2 || r.cnc2 || ""}</td>
+          <td>${r.Observacion || r.observacion || ""}</td>
+        </tr>`;
+      });
+
+      html += "</table>";
+      cont.innerHTML = html;
+    })
+    .catch(err => {
+      console.error(err);
+      cont.textContent = "Error leyendo historial desde Google Sheets.";
+    });
+}
+
+/* =====================================================
+   INIT
+===================================================== */
+document.addEventListener("DOMContentLoaded", ()=>{
+  cargarListasDesdeGoogle();
+  actualizarResumen();
+});
+</script>
+
+</body>
+</html>
